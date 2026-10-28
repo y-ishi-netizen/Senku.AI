@@ -23,11 +23,15 @@ for url in allowed_urls:
         text = (stripped_text.get("text"))
         title = (stripped_text.get("title"))
 
-        print(len(text), title)
+        #print(len(text), title)
     except Exception as e:
         logging.exception(f"error occured while processing {url}")# i wanna keep track of errors
         print(f"Something went wrong: {e}")
     finally:
         time.sleep(1)# i want to be curtious to other peoples servers
+
+    chunks = wpoopy.chunk_text(text)
+
+    print(chunks)
 
 

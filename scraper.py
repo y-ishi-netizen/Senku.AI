@@ -111,10 +111,10 @@ class scraper_agent:
         if not title:
             print("Missing Title")
 
-        for script_or_style in soup(["script", "style"]):
+        for script_or_style in soup(["script", "style", "nav", "header", "footer", "aside", "sup"]):
             script_or_style.decompose()
 
-        content = soup.find('main') or soup.find('article') or soup.find('body')
+        content = soup.find('main') or soup.find('article') or soup.find('body') or soup.find(id="mw-content-text")
         if not content:
             print("An error occured: no content found")
             return None
