@@ -29,7 +29,7 @@ class scraper_agent:
         self.user_agent = user_agent
         self.robots_db = {}
 
-    def url_agent(self, query):       # I didnt want to manually search for 10 sites, it would take too long to load in 1000 documents.
+    def url_agent(self, query: str) -> list[str]:       # I didnt want to manually search for 10 sites, it would take too long to load in 1000 documents.
         urls = []
         with DDGS() as ddgs:
             results = ddgs.text(query, max_results=30)# it has to be this big because of my filter restriction 
@@ -46,7 +46,7 @@ class scraper_agent:
 
         return urls
     
-    def robotstxt_check(self, urls, user_agent): # I opted for the honest version, declaring myself instead of hiding because indentified bots get better access
+    def robotstxt_check(self, urls: list[str], user_agent: str) -> list[str]: # I opted for the honest version, declaring myself instead of hiding because indentified bots get better access
 
         allowed_urls = []
 
@@ -87,7 +87,7 @@ class scraper_agent:
 
         return allowed_urls
 
-    def get_website_info(self, url): 
+    def get_website_info(self, url: str) -> str | None: 
         try:
             web_response = requests.get(url, headers={'User-Agent':self.user_agent}, timeout=10)
 
@@ -101,15 +101,15 @@ class scraper_agent:
             print(f"An error occurred while fetching the webpage.{e}")
             return None
 
-    def strip_text(self,html,url): # I stripped the text so it dosent give random stuff filling up my db
+    def strip_text(self,html: str, url: str) -> dict | None: # I stripped the text so it dosent give random stuff filling up my db
         if not html:
             return None
 
         soup = BeautifulSoup(html, 'html.parser')
-        title = soup.title.string if soup.title else "Source not found"
+        title = soup.title.string if soup.title else ""
 
         if not title:
-            print("Missing Title")
+            title = url
 
         for script_or_style in soup(["script", "style", "nav", "header", "footer", "aside", "sup"]):
             script_or_style.decompose()
@@ -128,7 +128,7 @@ class scraper_agent:
             "title": title
         }
 
-    def chunk_text(self, text, chunk_size=512,overlap=100,):  #I did this so I fall within embedding limit which is 512 for mxbai_embed_large.
+    def chunk_text(self, text: str, chunk_size=512,overlap=100,) -> list[str]:  #I did this so I fall within embedding limit which is 512 for mxbai_embed_large.
         # I did a 100 character overlap (a standard 20%) so it dosent cut off in the middle of something important
         chunks = []
         start = 0
@@ -145,7 +145,7 @@ class scraper_agent:
             if end >= len(text):
                 break
         return chunks
-    def vectorize_chunk(self, chunks:list):
+    def vectorize_chunk(self, chunks:list[str]) -> list[list[float]]:
         vectorized_chunks = []
         for chunk in chunks:
             vectorized_chunk = ollama.embed(
@@ -155,19 +155,18 @@ class scraper_agent:
             vectorized_chunks.append(vectorized_chunk['embeddings'][0])
 
         return vectorized_chunks
-    def store_chunk(self, vectorized_chunks,collection, title, source, chunks):
+    def store_chunk(self, vectorized_chunks: list[list[float]], collection, title: str, source :str, chunks: list[str]) -> None:
         custom_id = hashlib.md5(source.encode()).hexdigest()[:10] # the id's have to be unique so i made the hashlib to mark the page and enumerate to mark the chunk, together they make a unique id number.
         ids = [f"doc_{custom_id}_{i}" for i, _ in enumerate(chunks)]
 
         metadatas = [{"title":title, "source":source, "customId":custom_id, "number":i}for i,_ in enumerate(chunks)]
 
-        collection.add(
+        collection.upsert(
             documents = chunks,
             embeddings = vectorized_chunks,
             ids = ids,
             metadatas = metadatas
         )
-        print(len(title), len(source),len(custom_id))
     
 class backend_of_senkuai:   
     def initialize_collection(self):  #create the vault or get it so i can store my chunks
@@ -175,7 +174,7 @@ class backend_of_senkuai:
         collection = client.get_or_create_collection(name="knowledge_db")
         return collection
 
-    def collect_prompt (self, collection, prompt):  
+    def collect_prompt (self, collection, prompt: str) ->tuple[str, list[dict]]:  
         query_result = ollama.embed(
             model="mxbai-embed-large",  
             input=prompt
@@ -190,11 +189,11 @@ class backend_of_senkuai:
 
         return context, results['metadatas'][0]
     
-    def _make_response(self, context, metadatas, prompt):
+    def _make_response(self, context: str, metadatas: list[dict], prompt: str) -> tuple[str | None, dict | None]:
         s_prompt = (
             f"Here is the scientific information: {context} "
-            f"Using this information, please answer the user's question: {prompt}"
-            f"at the end of your message attatch the title and and source{metadatas}"
+            f"Use only this information, please answer the user's question: {prompt}"
+            f"at the end of your message attach:{metadatas}"
         )
         
         url = "http://localhost:11434/api/generate"
@@ -205,11 +204,11 @@ class backend_of_senkuai:
             "stream": False
         }
         try:
-            response = requests.post(url, json=payload, timeout=10)
+            response = requests.post(url, json=payload, timeout=120)
+            response.raise_for_status()
             data = response.json()
-            response = data["response"]
-
+            final_response = data["response"]
         except Exception as e:
             print(f"An error occurred while processing the request: {e}")
             return None, None
-        return response, data
+        return final_response, data
