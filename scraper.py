@@ -170,7 +170,7 @@ class scraper_agent:
         print(len(title), len(source),len(custom_id))
     
 class backend_of_senkuai:   
-    def initialize_vault(self):  #create the vault or get it so i can store my chunks
+    def initialize_collection(self):  #create the vault or get it so i can store my chunks
         client = chromadb.PersistentClient(path="./my_ai_db")
         collection = client.get_or_create_collection(name="knowledge_db")
         return collection
