@@ -32,6 +32,8 @@ for url in allowed_urls:
 
     chunks = wpoopy.chunk_text(text)
 
-    print(chunks)
+    vectorized_chunks = wpoopy.vectorize_chunk(chunks)
+
+    
 
 
