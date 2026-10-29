@@ -4,6 +4,10 @@ import time
 
 logging.basicConfig(level=logging.INFO)#i want my logs to show up
 
+zpoopy = scraper.backend_of_senkuai()
+
+collection = zpoopy.initialize_collection()
+
 query = input("What type of information would you like to store?: ")
 
 wpoopy = scraper.scraper_agent()
@@ -22,6 +26,7 @@ for url in allowed_urls:
             continue
         text = (stripped_text.get("text"))
         title = (stripped_text.get("title"))
+        source = (stripped_text.get("source"))
 
         #print(len(text), title)
     except Exception as e:
@@ -33,6 +38,10 @@ for url in allowed_urls:
     chunks = wpoopy.chunk_text(text)
 
     vectorized_chunks = wpoopy.vectorize_chunk(chunks)
+
+    store_yo_chunks = wpoopy.store_chunk(vectorized_chunks, collection, title, source, chunks)
+
+    print(collection.count())
 
     
 
