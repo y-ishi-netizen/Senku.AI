@@ -189,9 +189,9 @@ class backend_of_senkuai:
 
         return context, results['metadatas'][0]
     
-    def _make_response(self, context: str, metadatas: list[dict], prompt: str) -> tuple[str | None, dict | None]:
+    def make_response(self, context: str, metadatas: list[dict], prompt: str) -> tuple[str | None, dict | None]:
         s_prompt = (
-            f"Here is the scientific information: {context} "
+            f"Here is the scientific information: {context}"
             f"Use only this information, please answer the user's question: {prompt}"
             f"at the end of your message attach:{metadatas}"
         )
@@ -201,7 +201,8 @@ class backend_of_senkuai:
         payload= {
             "model": "SENKU.AI",
             "prompt": s_prompt,
-            "stream": False
+            "stream": False,
+            "think":False
         }
         try:
             response = requests.post(url, json=payload, timeout=120)
