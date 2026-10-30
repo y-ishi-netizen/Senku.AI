@@ -18,13 +18,13 @@ prompt = st.chat_input("whats your question: ")
 if prompt:
     st.chat_message("user").write(prompt)
 
-    context, results = backend.collect_prompt(collection, prompt)    
+    context, results = backend.collect_prompt(collection, prompt)   
 
     finalResponse, data = backend.make_response(context, results, prompt)
 
     if not finalResponse:
         st.error("Error returning response")
 
-    st.chat_message("assistant").write("finalResponse")
+    st.chat_message("assistant").write(finalResponse)
 
     
