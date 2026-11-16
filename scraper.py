@@ -171,7 +171,7 @@ class scraper_agent:
         )
     
 class backend_of_senkuai:  
-    """""
+    
     def initialize_memory(self):
             client = chromadb.PersistentClient(path="./my_ai_memory_db")
             engram = client.get_or_create_collection(name="memory_db")
@@ -190,48 +190,68 @@ class backend_of_senkuai:
                 embeddings = memory['embeddings'],
                  ids = mem_ids
             ) 
-    """
+    
     def initialize_collection(self):  #create the vault or get it so i can store my chunks
         client = chromadb.PersistentClient(path="./my_ai_db")
         collection = client.get_or_create_collection(name="knowledge_db")
         return collection
 
-    def collect_prompt (self, collection, prompt: str) ->tuple[str, list[dict]]:  
-        vectorized_prompt= ollama.embed(
-            model="mxbai-embed-large",  
+    def collect_prompt(self, collection, prompt: str, max_distance: float = 0.8) -> tuple[str, list[dict]]:
+        if collection.count() == 0:
+            return "", []
+
+        vectorized_prompt = ollama.embed(
+            model="mxbai-embed-large",
             input=prompt
         )
-        query_vector = vectorized_prompt['embeddings'][0] # I needed to vectorize my prompt so it can search for analogus vectors in my db
+        query_vector = vectorized_prompt["embeddings"][0]
 
         results = collection.query(
             query_embeddings=[query_vector],
-            n_results=3
+            n_results=3,
+            include=["documents", "metadatas", "distances"]
         )
-        context = " ".join(results['documents'][0])
 
-        return context, results['metadatas'][0]
-    
+        docs = results["documents"][0]
+        metas = results["metadatas"][0]
+        dists = results["distances"][0]
+        print(dists)
+
+        valid_docs = []
+        valid_metas = []
+        for doc, meta, dist in zip(docs, metas, dists):
+            if dist <= max_distance:
+                valid_docs.append(doc)
+                valid_metas.append(meta)
+
+        context = "\n\n".join(valid_docs)
+        return context, valid_metas
+
     def make_response(self, context: str, metadatas: list[dict], prompt: str) -> tuple[str | None, dict | None]:
-        s_prompt = (
-            f"Here is the scientific information: {context}"
-            f"Use only this information, please answer the user's question: {prompt}"
-            f"at the end of your message attach:{metadatas}"
-        )
-        
-        url = "http://localhost:11434/api/chat"
+        if context:
+            s_prompt = (
+                "You are SENKU.AI, Proxy's scientific and engineering partner. "
+                "Answer the question using the retrieved scientific context below, "
+                f"and list these sources at the end:\n{metadatas}\n\n"
+                f"CONTEXT:\n{context}"
+            )
+        else:
+            s_prompt = (
+                "You are SENKU.AI, Proxy's scientific and engineering partner. "
+                "Respond naturally and directly. Do not mention or reference a database."
+            )
 
-        payload= {
-            "model": "SENKU.AI",
-            "prompt": s_prompt,
-            "stream": False,
-            "think":False# I added this because qwen's thinking takes to long
-        }
         try:
-            response = requests.post(url, json=payload, timeout=120)
-            response.raise_for_status()
-            data = response.json()
-            final_response = data["response"]
+            response = ollama.chat(
+                model="SENKU.AI",
+                messages=[
+                    {"role": "system", "content": s_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                think=False
+            )
+            final_response = response["message"]["content"]
         except Exception as e:
             print(f"An error occurred while processing the request: {e}")
             return None, None
-        return final_response, data
+        return final_response, response
