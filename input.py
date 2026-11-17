@@ -4,23 +4,23 @@ import time
 
 logging.basicConfig(level=logging.INFO)#i want my logs to show up
 
-zpoopy = scraper.backend_of_senkuai()
+backend = scraper.backend_of_senkuai()
 
-collection = zpoopy.initialize_collection()
+collection = backend.initialize_collection()
 
 query = input("What type of information would you like to store?: ")
 
-wpoopy = scraper.scraper_agent()
+scraper = scraper.scraper_agent()
 
-poopy = wpoopy.url_agent(query)
+url = scraper.url_agent(query)
 
-allowed_urls = wpoopy.robotstxt_check(poopy, wpoopy.user_agent)
+allowed_urls = scraper.robotstxt_check(url, scraper.user_agent)
 
 for url in allowed_urls:
     
     try:
-        web_response = wpoopy.get_website_info(url)
-        stripped_text = wpoopy.strip_text(web_response, url)
+        web_response = scraper.get_website_info(url)
+        stripped_text = scraper.strip_text(web_response, url)
         if not stripped_text:
             print(f"No text found for {url}.")
             continue
@@ -35,11 +35,11 @@ for url in allowed_urls:
     finally:
         time.sleep(1)# i want to be curtious to other peoples servers
 
-        chunks = wpoopy.chunk_text(text)
+        chunks = scraper.chunk_text(text)
 
-        vectorized_chunks = wpoopy.vectorize_chunk(chunks)
+        vectorized_chunks = scraper.vectorize_chunk(chunks)
 
-        store_yo_chunks = wpoopy.store_chunk(vectorized_chunks, collection, title, source, chunks)
+        store_yo_chunks = scraper.store_chunk(vectorized_chunks, collection, title, source, chunks)
 
         print(collection.count())
 
