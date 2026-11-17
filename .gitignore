@@ -1,0 +1,9 @@
+my_ai_db/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+venv/
+.venv/
+*.log
+old/
